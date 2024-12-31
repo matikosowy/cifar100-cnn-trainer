@@ -98,7 +98,7 @@ class WideResNet(nn.Module):
         self.layer1 = self._wide_layer(WideBasicBlock, nStages[1], n, stride=1, dropout_rate=dropout_rate)
         self.layer2 = self._wide_layer(WideBasicBlock, nStages[2], n, stride=2, dropout_rate=dropout_rate)
         self.layer3 = self._wide_layer(WideBasicBlock, nStages[3], n, stride=2, dropout_rate=dropout_rate)
-        self.bn1 = nn.BatchNorm2d(nStages[3])
+        self.bn1 = nn.BatchNorm2d(nStages[3], momentum=0.9)
         self.linear = nn.Linear(nStages[3], num_classes)
         
         self.apply(self._init_weights)
@@ -125,7 +125,10 @@ class WideResNet(nn.Module):
         return out
 
     def _init_weights(self, m):
-        if type(m) == nn.Conv2d or type(m) == nn.Linear:
-            init.xavier_normal_(m.weight)
+        if type(m) == nn.Conv2d:
+            init.xavier_uniform_(m.weight)
             if m.bias is not None:
                 init.constant_(m.bias, 0)
+        if type(m) == nn.BatchNorm2d:
+            init.constant_(m.weight, 1)
+            init.constant_(m.bias, 0)
