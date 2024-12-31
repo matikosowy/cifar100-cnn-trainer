@@ -52,6 +52,7 @@ def main():
     
     os.makedirs(config.checkpoint_dir, exist_ok=True)
     checkpoint_path = os.path.join(config.checkpoint_dir, 'last_checkpoint.pth')
+    
     if os.path.exists(checkpoint_path):
         print("Restoring checkpoint...")
         trainer.load_checkpoint(checkpoint_path)
@@ -60,10 +61,11 @@ def main():
         print("Starting training...")
         trainer.train(train_loader, val_loader)
 
-        print("\nEvaluating on test set...")
+        print("Loading best model...")
         best_checkpoint_path = os.path.join(config.checkpoint_dir, 'best_model.pth')
         trainer.load_checkpoint(best_checkpoint_path)
         
+        print("\nEvaluating on test set...")
         test_metrics, test_accuracy = trainer.evaluate(test_loader, phase='test')
         print(f"Test Accuracy: {test_accuracy*100:.2f}%")
         print(f"Test Loss: {test_metrics['test_loss']:.4f}")

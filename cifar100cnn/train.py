@@ -6,7 +6,6 @@ import numpy as np
 from torch.amp import autocast, GradScaler
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR, OneCycleLR
 from tqdm import tqdm
-from torch.utils.data import DataLoader
 
 
 def mixup_data(x, y, alpha=0.2):
@@ -55,7 +54,7 @@ class TrainerConfig:
 
 class ModelTrainer:
     """Klasa trenera modelu."""
-    def __init__(self, model, device, config):
+    def __init__(self, model, device, config, train_loader=None):
         self.device = device
         self.model = model.to(device)
         self.config = config
@@ -81,6 +80,16 @@ class ModelTrainer:
                 self.optimizer,
                 milestones=[60, 120, 160],
                 gamma=0.2
+            )
+            
+        if config.scheduler == 'one_cycle':
+            if train_loader is None:
+                raise ValueError("train_loader is required for OneCycleLR scheduler")
+            self.scheduler = OneCycleLR(
+                self.optimizer,
+                max_lr=config.learning_rate,
+                steps_per_epoch=len(train_loader),
+                epochs=config.epochs
             )
         
         self.scaler = GradScaler() if device.type == 'cuda' else None
@@ -209,24 +218,23 @@ class ModelTrainer:
                 self.scheduler.step()
                 
                 print(f'\nEpoch {epoch+1}/{self.config.epochs}:')
-                print(f'Training Loss: {train_metrics["train_loss"]:.4f}')
-                print(f'Training Accuracy {"(mixup)" if self.config.mixup else ""}: {train_metrics["train_acc"]:.2f}%')
-                print(f'Validation Loss: {val_loss:.4f}')
-                print(f'Validation Accuracy: {accuracy*100:.2f}%')
-                print(f'Learning Rate: {self.optimizer.param_groups[0]["lr"]:.6f}')
-                
+                print(f'LR: {self.optimizer.param_groups[0]["lr"]:.6f}')
+                print(f'Training {"(mixup)" if self.config.mixup else ""} - loss: {train_metrics["train_loss"]:.4f}, 
+                      acc: {train_metrics["train_acc"]:.2f}%')
+                print(f'Validation - loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
+
                 # Zapisz najlepszy model
                 is_best = val_loss < best_val_loss
                 if is_best:
                     best_val_loss = val_loss
-                    print(f'New best validation: loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
+                    print(f'New best model: loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
                 
                 if is_best or epoch % 10 == 0:
                     self.save_checkpoint(
                         epoch, 
                         {**train_metrics, **val_metrics},
                         is_best=is_best
-                    )             
+                    )
         except KeyboardInterrupt:
             print("\nTraining interrupted by user")
         except Exception as e:
