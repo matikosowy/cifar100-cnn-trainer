@@ -10,6 +10,10 @@ torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
+# train or inference
+MODE = 'inference'
+MODEL_TO_LOAD = 'wideresnet-best80.pth'
+
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,28 +54,43 @@ def main():
     
     trainer = ModelTrainer(model, device, config)
     
-    os.makedirs(config.checkpoint_dir, exist_ok=True)
-    checkpoint_path = os.path.join(config.checkpoint_dir, 'last_checkpoint.pth')
+    if MODE == 'train':
     
-    if os.path.exists(checkpoint_path):
-        print("Restoring checkpoint...")
-        trainer.load_checkpoint(checkpoint_path)
-
-    try:
-        print("Starting training...")
-        trainer.train(train_loader, val_loader)
-
-        print("Loading best model...")
-        best_checkpoint_path = os.path.join(config.checkpoint_dir, 'best_model.pth')
-        trainer.load_checkpoint(best_checkpoint_path)
+        os.makedirs(config.checkpoint_dir, exist_ok=True)
+        checkpoint_path = os.path.join(config.checkpoint_dir, 'last_checkpoint.pth')
         
-        print("\nEvaluating on test set...")
-        test_metrics, test_accuracy = trainer.evaluate(test_loader, phase='test')
-        print(f"Test Accuracy: {test_accuracy*100:.2f}%")
-        print(f"Test Loss: {test_metrics['test_loss']:.4f}")
+        if os.path.exists(checkpoint_path):
+            print("Restoring checkpoint...")
+            trainer.load_checkpoint(checkpoint_path)
 
-    finally:
-        trainer.cleanup()
+        try:
+            print("Starting training...")
+            trainer.train(train_loader, val_loader)
+
+            print("Loading best model...")
+            best_checkpoint_path = os.path.join(config.checkpoint_dir, 'best_model.pth')
+            trainer.load_checkpoint(best_checkpoint_path)
+            
+            print("\nEvaluating on test set...")
+            test_metrics, test_accuracy = trainer.evaluate(test_loader, phase='test')
+            print(f"Test Accuracy: {test_accuracy*100:.2f}%")
+            print(f"Test Loss: {test_metrics['test_loss']:.4f}")
+
+        finally:
+            trainer.cleanup()
+            
+    if MODE == 'inference':
+        try:
+            checkpoint_path = os.path.join(config.checkpoint_dir, MODEL_TO_LOAD)
+            trainer.load_checkpoint(checkpoint_path)
+            
+            print("Evaluating on test set...")
+            test_metrics, test_accuracy = trainer.evaluate(test_loader, phase='test')
+            print(f"Test Accuracy: {test_accuracy*100:.2f}%")
+            print(f"Test Loss: {test_metrics['test_loss']:.4f}")
+        
+        finally:
+            trainer.cleanup()
 
 
 if __name__ == '__main__':

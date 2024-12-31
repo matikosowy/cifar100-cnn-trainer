@@ -18,7 +18,7 @@ class CIFAR100DataModule:
         self.num_workers = num_workers
         self.num_classes = num_classes
         self.data_dir = data_dir
-        self.augmnet = augment
+        self.augment = augment
         
         # Wartości do normalizacji dla CIFAR-100
         self.mean = [0.5071, 0.4867, 0.4408]

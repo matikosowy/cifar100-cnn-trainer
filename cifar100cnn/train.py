@@ -239,8 +239,8 @@ class ModelTrainer:
                 
                 print(f'\nEpoch {epoch+1}/{self.config.epochs}:')
                 print(f'LR: {self.optimizer.param_groups[0]["lr"]:.6f}')
-                print(f'Training {"(mixup)" if self.config.mixup else ""} - loss: {train_metrics["train_loss"]:.4f}, 
-                      acc: {train_metrics["train_acc"]:.2f}%')
+                print(f'Training {"(mixup)" if self.config.mixup else ""} - loss: {train_metrics["train_loss"]:.4f}, '
+                      f'acc: {train_metrics["train_acc"]:.2f}%')
                 print(f'Validation - loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
 
                 # Zapisz najlepszy model
