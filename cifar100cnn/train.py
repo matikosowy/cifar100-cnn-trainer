@@ -4,8 +4,10 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from torch.amp import autocast, GradScaler
-from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR, OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR, OneCycleLR, ReduceLROnPlateau
 from tqdm import tqdm
+from datetime import datetime
+import wandb
 
 
 def mixup_data(x, y, alpha=0.2):
@@ -29,7 +31,17 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam):
 
 
 class TrainerConfig:
-    """Klasa konfiguracyjna dla trenera modelu."""
+    """Klasa konfiguracyjna dla trenera modelu.
+    
+    Args:
+        epochs (int): Liczba epok.
+        learning_rate (float): Współczynnik uczenia.
+        weight_decay (float): Współczynnik regularyzacji L2.
+        label_smoothing (float): Współczynnik wygładzania etykiet.
+        checkpoint_dir (str): Ścieżka do zapisu checkpointów.
+        scheduler (str): Typ schedulera (cos, wide_resnet, one_cycle, reduce).
+        mixup (bool): Czy używać Mixup.
+    """
     def __init__(
         self,
         epochs = 200,
@@ -90,6 +102,14 @@ class ModelTrainer:
                 max_lr=config.learning_rate,
                 steps_per_epoch=len(train_loader),
                 epochs=config.epochs
+            )
+            
+        if config.scheduler == 'reduce':
+            self.scheduler = ReduceLROnPlateau(
+                self.optimizer,
+                mode='min',
+                factor=0.5,
+                patience=10,
             )
         
         self.scaler = GradScaler() if device.type == 'cuda' else None
