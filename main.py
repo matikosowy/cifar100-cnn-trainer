@@ -16,7 +16,7 @@ def main():
     print(f"Using device: {device}")
 
     print("Loading data...")
-    train_loader, val_loader, test_loader, class_names = get_cifar_data() # domyślne ustawienia, 50 klas
+    train_loader, val_loader, test_loader, class_names = get_cifar_data(num_classes=50, augment=True)
     print(f"Number of classes: {len(class_names)}")
     
     with open('class_names.txt', 'w') as f:

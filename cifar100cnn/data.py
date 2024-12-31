@@ -10,13 +10,15 @@ class CIFAR100DataModule:
     def __init__(self, 
                  batch_size= 128,
                  num_workers = 4,
-                 num_classes = 50,
-                 data_dir = './data'):
+                 num_classes = 100,
+                 data_dir = './data',
+                 augment = True):
     
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.num_classes = num_classes
         self.data_dir = data_dir
+        self.augmnet = augment
         
         # Wartości do normalizacji dla CIFAR-100
         self.mean = [0.5071, 0.4867, 0.4408]
@@ -33,9 +35,10 @@ class CIFAR100DataModule:
         train_transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(32, padding=4),
-            transforms.RandomRotation(10),
-            transforms.ColorJitter(brightness=0.2, saturation=0.2, contrast=0.2, hue=0.1),
-            transforms.RandomErasing(p=0.1),
+            transforms.RandomRotation(10 if self.augment else 0),
+            *([transforms.ColorJitter(brightness=0.2, saturation=0.2, contrast=0.2, hue=0.1)]
+                if self.augment else [] ),
+            transforms.RandomErasing(p=0.1 if self.augment else 0),
             transforms.Compose([
                 transforms.ToImage(),
                 transforms.ToDtype(torch.float32, scale=True),
@@ -156,14 +159,15 @@ class CIFAR100DataModule:
         return self.train_loader, self.val_loader, self.test_loader, self.class_names
 
 
-def get_cifar_data(batch_size=128, num_workers=4, num_classes=50, 
-                   data_dir='./data'):
+def get_cifar_data(batch_size=128, num_workers=4, num_classes=100, 
+                   data_dir='./data', augment=False):
     """Domyślna funkcja do pobierania gotowych danych CIFAR-100."""
     data_module = CIFAR100DataModule(
         batch_size=batch_size,
         num_workers=num_workers,
         num_classes=num_classes,
         data_dir=data_dir,
+        augment=augment,
     )
     
     data_module.setup()
