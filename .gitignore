@@ -1,0 +1,7 @@
+checkpoints
+data
+models
+.idea
+__pycache__
+class_names.txt
+.DS_Store

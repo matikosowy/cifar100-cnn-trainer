@@ -219,10 +219,7 @@ class ModelTrainer:
                 is_best = val_loss < best_val_loss
                 if is_best:
                     best_val_loss = val_loss
-                    self.patience_counter = 0
                     print(f'New best validation: loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
-                else:
-                    self.patience_counter += 1
                 
                 if is_best or epoch % 10 == 0:
                     self.save_checkpoint(

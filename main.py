@@ -1,4 +1,4 @@
-from cifar100cnn.model import ResNet, WideResNet
+from cifar100cnn.models import ResNet, WideResNet
 from cifar100cnn.train import ModelTrainer, TrainerConfig
 from cifar100cnn.data import get_cifar_data
 import torch
@@ -6,13 +6,17 @@ import numpy as np
 import random
 import os
 
+torch.manual_seed(42)
+np.random.seed(42)
+random.seed(42)
+
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
     print("Loading data...")
-    train_loader, val_loader, test_loader, class_names = get_cifar_data()
+    train_loader, val_loader, test_loader, class_names = get_cifar_data() # domyślne ustawienia, 50 klas
     print(f"Number of classes: {len(class_names)}")
     
     with open('class_names.txt', 'w') as f:
@@ -69,8 +73,4 @@ def main():
 
 
 if __name__ == '__main__':
-    torch.manual_seed(42)
-    np.random.seed(42)
-    random.seed(42)
-    
     main()
