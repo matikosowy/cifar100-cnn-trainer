@@ -12,7 +12,7 @@ random.seed(42)
 
 # train or inference
 MODE = 'inference'
-MODEL_TO_LOAD = 'wideresnet-best80.pth'
+MODEL_TO_LOAD = 'models/resnet50/resnet50ftnew.pth'
 
 
 def main():
@@ -27,20 +27,21 @@ def main():
         f.write('\n'.join(class_names))
 
     print("Initializing model...")
-    # model = ResNet(
-    #     version=50
-    #     num_classes=50,  
-    #     pretrained=True,
-    #     layers_to_unfreeze=2,
-    #     expand=True
+    model = ResNet(
+        version=50,
+        num_classes=50,  
+        pretrained=False,
+        layers_to_unfreeze=0,
+        expand=True
+    )
+    
+    # model = WideResNet(
+    #     depth=28,
+    #     widen_factor=10,
+    #     dropout_rate=0.3,
+    #     num_classes=50
     # )
     
-    model = WideResNet(
-        depth=28,
-        widen_factor=10,
-        dropout_rate=0.3,
-        num_classes=50
-    )
 
     print("Setting up trainer...")
     config = TrainerConfig(
@@ -81,8 +82,7 @@ def main():
             
     if MODE == 'inference':
         try:
-            checkpoint_path = os.path.join(config.checkpoint_dir, MODEL_TO_LOAD)
-            trainer.load_checkpoint(checkpoint_path)
+            trainer.load_checkpoint(MODEL_TO_LOAD, inference=True)
             
             print("Evaluating on test set...")
             test_metrics, test_accuracy = trainer.evaluate(test_loader, phase='test')

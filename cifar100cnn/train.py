@@ -211,14 +211,23 @@ class ModelTrainer:
         
         torch.save(checkpoint, os.path.join(self.config.checkpoint_dir, 'last_checkpoint.pth'))
 
-    def load_checkpoint(self, checkpoint_path):
+    def load_checkpoint(self, checkpoint_path, inference=False):
         """Wczytuje stan modelu, optymalizatora i schedulera z checkpointu."""
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        self.best_accuracy = checkpoint['best_accuracy']
-        return checkpoint['epoch']
+        
+        if not any(key.startswith('model.') for key in checkpoint['model_state_dict'].keys()):
+            model_state_dict = {f'model.{k}': v for k, v in checkpoint['model_state_dict'].items()}
+        else:
+            model_state_dict = checkpoint['model_state_dict']
+    
+        self.model.load_state_dict(model_state_dict)
+        if not inference:
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            self.best_accuracy = checkpoint['best_accuracy']
+            return checkpoint['epoch']
+        else:
+            return None
 
     def train(self, train_loader, val_loader):
         """Trening modelu."""
