@@ -8,7 +8,7 @@ class ResNet(nn.Module):
         super().__init__()
         
         self.pretrained = pretrained
-        self.name = f"resnet{version}"
+        self.name = f"resnet{version}_{'ex' if expand else ''}"
 
         if version == 18:
             self.model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)

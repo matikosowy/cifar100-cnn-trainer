@@ -5,3 +5,4 @@ models
 __pycache__
 class_names.txt
 .DS_Store
+wandb
