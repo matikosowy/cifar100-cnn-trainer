@@ -10,9 +10,10 @@ torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
-# train or inference
-MODE = 'inference'
-MODEL_TO_LOAD = 'models/resnet50/resnet50ftnew.pth'
+# SETTINGS
+MODE = 'train' # train or inference
+RESUME = False # resume training from last checkpoint
+MODEL_TO_LOAD = 'models/resnet18/resnet18scratch-76acc.pth'
 
 
 def main():
@@ -28,11 +29,11 @@ def main():
 
     print("Initializing model...")
     model = ResNet(
-        version=50,
+        version=18,
         num_classes=50,  
         pretrained=False,
         layers_to_unfreeze=0,
-        expand=True
+        expand=False
     )
     
     # model = WideResNet(
@@ -42,32 +43,36 @@ def main():
     #     num_classes=50
     # )
     
+    name_suffix = 'from-scratch' if not model.pretrained else 'fine-tuned'
 
     print("Setting up trainer...")
     config = TrainerConfig(
         epochs=200,
         learning_rate=0.1, # starting lr for scheduler
         weight_decay=5e-4,
-        checkpoint_dir='./checkpoints',
-        scheduler='wide_resnet',
-        mixup=False
+        checkpoint_dir=f'checkpoints/{model.name}/{name_suffix}',
+        scheduler='one_cycle',
+        mixup=False,
+        label_smoothing=0.1
     )
     
-    trainer = ModelTrainer(model, device, config)
+    trainer = ModelTrainer(model, device, config, train_loader=train_loader)
     
     if MODE == 'train':
     
         os.makedirs(config.checkpoint_dir, exist_ok=True)
         checkpoint_path = os.path.join(config.checkpoint_dir, 'last_checkpoint.pth')
         
-        if os.path.exists(checkpoint_path):
+        if RESUME and os.path.exists(checkpoint_path):
             print("Restoring checkpoint...")
             trainer.load_checkpoint(checkpoint_path)
 
         try:
+            # Training
             print("Starting training...")
             trainer.train(train_loader, val_loader)
 
+            # Inference on test set after training
             print("Loading best model...")
             best_checkpoint_path = os.path.join(config.checkpoint_dir, 'best_model.pth')
             trainer.load_checkpoint(best_checkpoint_path)

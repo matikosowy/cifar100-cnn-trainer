@@ -6,6 +6,9 @@ from torch.nn import init
 class ResNet(nn.Module):
     def __init__(self, version, num_classes, pretrained=False, layers_to_unfreeze=0, expand=False):
         super().__init__()
+        
+        self.pretrained = pretrained
+        self.name = f"resnet{version}"
 
         if version == 18:
             self.model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
@@ -86,6 +89,8 @@ class WideBasicBlock(nn.Module):
 class WideResNet(nn.Module):
     def __init__(self, depth, widen_factor, dropout_rate, num_classes):
         super().__init__()
+        
+        self.name = f"wide_resnet{depth}_{widen_factor}"
         self.in_planes = 16
 
         assert ((depth-4)%6 ==0), 'Depth should be 6n+4'

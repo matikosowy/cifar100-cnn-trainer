@@ -150,6 +150,9 @@ class ModelTrainer:
             else:
                 loss.backward()
                 self.optimizer.step()
+                
+            if self.config.scheduler == 'one_cycle':
+                self.scheduler.step()
             
             running_loss += loss.item()
             _, predicted = outputs.max(1)
@@ -232,7 +235,7 @@ class ModelTrainer:
     def train(self, train_loader, val_loader):
         """Trening modelu."""
         try:
-            best_val_loss = float('inf')
+            best_val_acc = 0.0
             
             for epoch in range(self.config.epochs):
                 self.current_epoch = epoch
@@ -244,7 +247,11 @@ class ModelTrainer:
                 val_metrics, accuracy = self.evaluate(val_loader)
                 val_loss = val_metrics['val_loss']
                 
-                self.scheduler.step()
+                if self.config.scheduler != 'one_cycle':
+                    if self.config.scheduler == 'reduce':
+                        self.scheduler.step(val_loss)
+                    else:
+                        self.scheduler.step()
                 
                 print(f'\nEpoch {epoch+1}/{self.config.epochs}:')
                 print(f'LR: {self.optimizer.param_groups[0]["lr"]:.6f}')
@@ -253,9 +260,9 @@ class ModelTrainer:
                 print(f'Validation - loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
 
                 # Zapisz najlepszy model
-                is_best = val_loss < best_val_loss
+                is_best = accuracy > best_val_acc
                 if is_best:
-                    best_val_loss = val_loss
+                    best_val_acc = accuracy
                     print(f'New best model: loss: {val_loss:.4f}, acc: {accuracy*100:.2f}%')
                 
                 if is_best or epoch % 10 == 0:
