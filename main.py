@@ -28,37 +28,40 @@ def main():
     print(f"Test size: {len(test_loader.dataset)}")
 
     print("Initializing model...")
-    model = ResNet(
-        version=50,
-        num_classes=50,  
-        pretrained=True,
-        layers_to_unfreeze=2,
-    )
-    
-    # model = WideResNet(
-    #     depth=28,
-    #     widen_factor=10,
-    #     dropout_rate=0.3,
-    #     num_classes=50
+    # model = ResNet(
+    #     version=50,
+    #     num_classes=50,  
+    #     pretrained=True,
+    #     layers_to_unfreeze=2,
     # )
+    
+    model = WideResNet(
+        depth=28,
+        widen_factor=10,
+        dropout_rate=0.5,
+        num_classes=50
+    )
     
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
     
-    name_suffix = 'from-scratch' if not model.pretrained else 'fine-tuned'
+    if model.name.startswith('resnet'):
+        name_suffix = 'from-scratch' if not model.pretrained else 'fine-tuned'
+    else:
+        name_suffix = None
 
     print("Setting up trainer...")
     config = TrainerConfig(
         epochs=100,
-        learning_rate=0.003, # starting lr for scheduler
-        weight_decay=5e-3,
-        checkpoint_dir=f'checkpoints/{model.name}/{name_suffix}',
+        learning_rate=0.1, # starting lr for scheduler
+        weight_decay=5e-4,
+        checkpoint_dir=f'checkpoints/{model.name}/{name_suffix}' if name_suffix else f'checkpoints/{model.name}',
         experiment_name=f'{model.name}_{name_suffix}',
         scheduler='cos',
-        mixup=True,
-        label_smoothing=0.2,
+        mixup=False,
+        label_smoothing=0.1,
     )
     
     trainer = ModelTrainer(model, device, config, class_names=class_names, train_loader=train_loader)
