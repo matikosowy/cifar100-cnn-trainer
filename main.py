@@ -12,8 +12,8 @@ random.seed(42)
 
 # SETTINGS
 MODE = 'train' # train or inference
-RESUME = False # resume training from last checkpoint
-MODEL_TO_LOAD = 'checkpoints/resnet18/from-scratch/best_model.pth'
+RESUME_TRAINING = False # resume training from last checkpoint
+MODEL_FOR_INFERENCE = 'checkpoints/resnet18/from-scratch/best_model.pth'
 
 
 def main():
@@ -26,18 +26,14 @@ def main():
     print(f"Train size: {len(train_loader.dataset)}")
     print(f"Validation size: {len(val_loader.dataset)}")
     print(f"Test size: {len(test_loader.dataset)}")
-    
-    with open('class_names.txt', 'w') as f:
-        f.write('\n'.join(class_names))
-    print("Saved class names to class_names.txt")
 
     print("Initializing model...")
     model = ResNet(
-        version=18,
+        version=50,
         num_classes=50,  
-        pretrained=False,
-        #layers_to_unfreeze=0,
-        expand=True
+        pretrained=True,
+        layers_to_unfreeze=2,
+        expand=False
     )
     
     # model = WideResNet(
@@ -52,20 +48,21 @@ def main():
     print("Setting up trainer...")
     config = TrainerConfig(
         epochs=200,
-        learning_rate=0.1, # starting lr for scheduler
+        learning_rate=0.05, # starting lr for scheduler
         weight_decay=1e-3,
         checkpoint_dir=f'checkpoints/{model.name}/{name_suffix}',
+        experiment_name=f'{model.name}_{name_suffix}',
         scheduler='wide_resnet',
         mixup=True,
     )
     
-    trainer = ModelTrainer(model, device, config, train_loader=train_loader, class_names=class_names)
+    trainer = ModelTrainer(model, device, config, class_names=class_names)
     
     if MODE == 'train':
         os.makedirs(config.checkpoint_dir, exist_ok=True)
         checkpoint_path = os.path.join(config.checkpoint_dir, 'last_checkpoint.pth')
         
-        if RESUME and os.path.exists(checkpoint_path):
+        if RESUME_TRAINING and os.path.exists(checkpoint_path):
             print("Restoring checkpoint...")
             trainer.load_checkpoint(checkpoint_path)
 
@@ -76,7 +73,7 @@ def main():
                 trainer.train(train_loader, val_loader)
             except ValueError as e:
                 error_message = str(e)
-                if "Tried to step" in error_message and RESUME:
+                if "Tried to step" in error_message and RESUME_TRAINING:
                     print(f"Caught ValueError: {error_message}. LR reset.")
                     trainer.load_checkpoint(checkpoint_path, reset_lr=True)
                     trainer.train(train_loader, val_loader)
@@ -98,7 +95,7 @@ def main():
             
     if MODE == 'inference':
         try:
-            trainer.load_checkpoint(MODEL_TO_LOAD, inference=True)
+            trainer.load_checkpoint(MODEL_FOR_INFERENCE, inference=True)
             
             print("Evaluating on test set...")
             test_metrics, test_accuracy = trainer.evaluate(test_loader, phase='test', inference=True)

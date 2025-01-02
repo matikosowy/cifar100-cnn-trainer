@@ -6,3 +6,4 @@ __pycache__
 class_names.txt
 .DS_Store
 wandb
+results.txt

@@ -8,7 +8,7 @@ class ResNet(nn.Module):
         super().__init__()
         
         self.pretrained = pretrained
-        self.name = f"resnet{version}_{'ex' if expand else ''}"
+        self.name = f"resnet{version}{'_ex' if expand else ''}"
 
         if version == 18:
             self.model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
@@ -17,10 +17,11 @@ class ResNet(nn.Module):
         else:
             raise ValueError("Invalid version. Use 18 for resnet18 or 50 for resnet50.")
 
+        # Works better for CIFAR-100 (less aggressive downsampling, since images are smaller)
+        self.model.conv1.stride = (1, 1)
+        self.model.maxpool = nn.Identity()
+        
         if expand:
-            self.model.conv1.stride = (1, 1)
-            self.model.maxpool = nn.Identity()
-            
             self.model.fc = nn.Sequential(
                 nn.Dropout(0.5),
                 nn.Linear(self.model.fc.in_features, 512),

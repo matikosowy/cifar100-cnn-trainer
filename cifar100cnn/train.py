@@ -301,6 +301,7 @@ class ModelTrainer:
             'scheduler_state_dict': self.scheduler.state_dict(),
             'best_accuracy': self.best_accuracy,
             'metrics': metrics,
+            'scheduler_type': self.config.scheduler
         }
         
         checkpoint_path = Path(self.config.checkpoint_dir)
@@ -310,14 +311,6 @@ class ModelTrainer:
         torch.save(checkpoint, last_checkpoint_path)
         if is_best:
             torch.save(checkpoint, best_checkpoint_path)
-        
-        artifact = wandb.Artifact(
-            name=f"model-checkpoint-epoch-{epoch}",
-            type="model",
-            description=f"Model checkpoint from epoch {epoch}"
-        )
-        artifact.add_file(str(last_checkpoint_path))
-        wandb.log_artifact(artifact)
         
         if is_best:
             best_artifact = wandb.Artifact(
@@ -340,12 +333,12 @@ class ModelTrainer:
         self.model.load_state_dict(model_state_dict)
         
         if not inference:
-            saved_scheduler_type = checkpoint['scheduler_state_dict'].get('_scheduler_type', None)
-            current_scheduler_type = self.scheduler.__class__.__name__
+            saved_scheduler_type = checkpoint['scheduler_type'] if 'scheduler_type' in checkpoint else None
+            current_scheduler_type = self.config.scheduler
             
-            loaded_lr = checkpoint['optimizer_state_dict']['param_groups'][0]['lr']
+            saved_lr = checkpoint['optimizer_state_dict']['param_groups'][0]['lr']
             
-            should_reset = reset_lr or (saved_scheduler_type != current_scheduler_type) or loaded_lr == 0
+            should_reset = reset_lr or (saved_scheduler_type != current_scheduler_type) or (saved_lr < 1e-6)
             
             if should_reset:
                 print(

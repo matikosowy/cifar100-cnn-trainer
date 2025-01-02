@@ -155,6 +155,10 @@ class CIFAR100DataModule:
     def dataloaders(self):
         if not all([self.train_loader, self.val_loader, self.test_loader]):
             raise RuntimeError("Data module not set up. Call setup() first.")
+        
+        with open('class_names.txt', 'w') as f:
+            f.write('\n'.join(self.class_names))
+        print("Saved class names to class_names.txt")
             
         return self.train_loader, self.val_loader, self.test_loader, self.class_names
 
