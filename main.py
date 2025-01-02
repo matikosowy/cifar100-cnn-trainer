@@ -13,7 +13,7 @@ random.seed(42)
 # SETTINGS
 MODE = 'train' # train or inference
 RESUME_TRAINING = False # resume training from last checkpoint
-MODEL_FOR_INFERENCE = 'checkpoints/resnet18/from-scratch/best_model.pth'
+MODEL_FOR_INFERENCE = 'checkpoints/resnet18/fine-tuned/best_model.pth'
 
 
 def main():
@@ -31,9 +31,10 @@ def main():
     model = ResNet(
         version=50,
         num_classes=50,  
-        pretrained=True,
+        pretrained=False,
         layers_to_unfreeze=2,
-        expand=False
+        expand=False,
+        add_dropout=False
     )
     
     # model = WideResNet(
@@ -43,20 +44,26 @@ def main():
     #     num_classes=50
     # )
     
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    
     name_suffix = 'from-scratch' if not model.pretrained else 'fine-tuned'
 
     print("Setting up trainer...")
     config = TrainerConfig(
         epochs=200,
-        learning_rate=0.05, # starting lr for scheduler
-        weight_decay=1e-3,
+        learning_rate=0.1, # starting lr for scheduler
+        weight_decay=5e-4,
         checkpoint_dir=f'checkpoints/{model.name}/{name_suffix}',
         experiment_name=f'{model.name}_{name_suffix}',
         scheduler='wide_resnet',
         mixup=True,
+        label_smoothing=0.2,
     )
     
-    trainer = ModelTrainer(model, device, config, class_names=class_names)
+    trainer = ModelTrainer(model, device, config, class_names=class_names, train_loader=train_loader)
     
     if MODE == 'train':
         os.makedirs(config.checkpoint_dir, exist_ok=True)

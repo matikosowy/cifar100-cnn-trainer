@@ -4,11 +4,12 @@ import torch.nn.functional as F
 from torch.nn import init
 
 class ResNet(nn.Module):
-    def __init__(self, version, num_classes, pretrained=False, layers_to_unfreeze=0, expand=False):
+    def __init__(self, version, num_classes, pretrained=False, layers_to_unfreeze=0, expand=False, add_dropout=False):
         super().__init__()
         
         self.pretrained = pretrained
-        self.name = f"resnet{version}{'_ex' if expand else ''}"
+        self.name = f"resnet{version}{'_ex' if expand else ''}{'_drop' if add_dropout else ''}"
+        self.model = None
 
         if version == 18:
             self.model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
@@ -31,7 +32,13 @@ class ResNet(nn.Module):
                 nn.Linear(512, num_classes)
             )
         else:
-            self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+            if add_dropout:
+                self.model.fc = nn.Sequential(
+                    nn.Dropout(0.5),
+                    nn.Linear(self.model.fc.in_features, num_classes)
+                )
+            else:
+                self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
 
         if pretrained and layers_to_unfreeze > 0:
             self._unfreeze_layers(layers_to_unfreeze)

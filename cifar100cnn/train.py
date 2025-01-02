@@ -39,9 +39,10 @@ class TrainerConfig:
         epochs (int): Liczba epok.
         learning_rate (float): Współczynnik uczenia.
         weight_decay (float): Współczynnik regularyzacji L2.
-        label_smoothing (float): Współczynnik wygładzania etykiet.
+        label_smoothing (float): Współczynnik wygładzania etykiet (dla mixup - alpha).
         checkpoint_dir (str): Ścieżka do zapisu checkpointów.
         scheduler (str): Typ schedulera (cos, wide_resnet, one_cycle, reduce).
+        optimizer (str): Typ optymalizatora (sgd, adam).
         mixup (bool): Czy używać Mixup.
         project_name (str): Nazwa projektu w Weight & Biases.
         experiment_name (str): Nazwa eksperymentu w Weight & Biases.
@@ -56,6 +57,7 @@ class TrainerConfig:
         label_smoothing = 0.1,
         checkpoint_dir = './checkpoints',
         scheduler = 'cos',
+        optimizer = 'sgd',
         mixup=True,
         project_name='cifar100-cnn',
         experiment_name=None,
@@ -68,6 +70,7 @@ class TrainerConfig:
         self.weight_decay = weight_decay
         self.checkpoint_dir = checkpoint_dir
         self.scheduler = scheduler
+        self.optimizer = optimizer
         self.label_smoothing = label_smoothing
         self.mixup = mixup
         self.project_name = project_name
@@ -79,7 +82,16 @@ class TrainerConfig:
 
 
 class ModelTrainer:
-    """Klasa trenera modelu."""
+    """Klasa trenera modelu.
+    
+    Args:
+        model (nn.Module): Model do trenowania.
+        device (torch.device): Urządzenie (cpu, cuda).
+        config (TrainerConfig): Konfiguracja trenera.
+        train_loader (DataLoader): *tylko jeśli używamy one_cycle*
+        class_names (list): Lista nazw klas (dla wandb).
+    
+    """
     def __init__(self, model, device, config, train_loader=None, class_names=None):
         self.device = device
         self.model = model.to(device)
@@ -89,7 +101,7 @@ class ModelTrainer:
         self.wandb_step = 0
         
         self.init_wandb()
-        wandb.watch(model, log='all', log_freq=config.log_predictions_freq)
+        #wandb.watch(model, log='all', log_freq=config.log_predictions_freq)
         
         self.criterion_train = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
         self.criterion_eval = nn.CrossEntropyLoss()
@@ -128,25 +140,26 @@ class ModelTrainer:
         )
 
     def log_batch_predictions(self, inputs, outputs, labels, prefix="train"):
-        """Zapisuje predykcje modelu do W&B."""
+        """Zapisuje losowe predykcje modelu do W&B."""
         _, predicted = outputs.max(1)
         
-        num_images = min(8, inputs.size(0))
-        images = inputs[:num_images]
-        preds = predicted[:num_images]
-        actual = labels[:num_images]
+        batch_size = inputs.size(0)
+        max_images = min(8, batch_size)
+        indices = torch.randperm(batch_size)[:max_images]
+        
+        images = inputs[indices]
+        preds = predicted[indices]
+        actual = labels[indices]
         
         img_grid = torchvision.utils.make_grid(images, normalize=True)
-        
-        img_grid_np = img_grid.permute(1, 2, 0).cpu().numpy()  # Convert to HWC format
+        img_grid_np = img_grid.permute(1, 2, 0).cpu().numpy()
         
         if self.class_names is not None:
             captions = [
-            f"Pred: {self.class_names[p.item()]}, True: {self.class_names[a.item()]}"
-            for p, a in zip(preds, actual)
+                f"Pred: {self.class_names[p.item()]}, True: {self.class_names[a.item()]}"
+                for p, a in zip(preds, actual)
             ]
         else:
-            print("No class names provided, using class indices")
             captions = [f"Pred: {p.item()}, True: {a.item()}" for p, a in zip(preds, actual)]
         
         wandb.log({
@@ -188,7 +201,7 @@ class ModelTrainer:
             
             if self.config.mixup:
                 inputs, labels_a, labels_b, lam = mixup_data(
-                    inputs, labels
+                    inputs, labels, alpha=self.config.label_smoothing if not None else 0.2
                 )
 
             self.optimizer.zero_grad()
@@ -301,7 +314,8 @@ class ModelTrainer:
             'scheduler_state_dict': self.scheduler.state_dict(),
             'best_accuracy': self.best_accuracy,
             'metrics': metrics,
-            'scheduler_type': self.config.scheduler
+            'scheduler_type': self.config.scheduler,
+            'optimizer_type': self.config.optimizer
         }
         
         checkpoint_path = Path(self.config.checkpoint_dir)
@@ -336,15 +350,21 @@ class ModelTrainer:
             saved_scheduler_type = checkpoint['scheduler_type'] if 'scheduler_type' in checkpoint else None
             current_scheduler_type = self.config.scheduler
             
+            saved_optimizer_type = checkpoint['optimizer_type'] if 'optimizer_type' in checkpoint else None
+            current_optimizer_type = self.config.optimizer
+            
             saved_lr = checkpoint['optimizer_state_dict']['param_groups'][0]['lr']
             
-            should_reset = reset_lr or (saved_scheduler_type != current_scheduler_type) or (saved_lr < 1e-6)
+            should_reset = reset_lr or (saved_scheduler_type != current_scheduler_type) or (saved_lr < 1e-6) or (saved_optimizer_type != current_optimizer_type)
             
             if should_reset:
-                print(
-                    f"Resetting optimizer and scheduler..."
-                    f"Saved scheduler type: {saved_scheduler_type}, current scheduler type: {current_scheduler_type}"
-                )
+                print("Resetting optimizer and scheduler...")
+                if saved_scheduler_type != current_scheduler_type:
+                    print(f"Saved scheduler type: {saved_scheduler_type}, new scheduler type: {current_scheduler_type}")
+                if saved_optimizer_type != current_optimizer_type:
+                    print(f"Saved optimizer type: {saved_optimizer_type}, new optimizer type: {current_optimizer_type}")
+                if saved_lr < 1e-6:
+                    print(f"Saved LR too low: {saved_lr}, resetting to {self.config.learning_rate}")
 
                 self._init_optimizer_and_scheduler(self.config, self.train_loader)
             else:
@@ -378,7 +398,6 @@ class ModelTrainer:
                         self.scheduler.step()
                         
                 epoch_metrics = {
-                    "epoch": epoch,
                     "train/epoch_loss": train_metrics['train_loss'],
                     "train/epoch_accuracy": train_metrics['train_acc'],
                     "val/epoch_loss": val_metrics['val_loss'],
@@ -427,13 +446,25 @@ class ModelTrainer:
         if config.scheduler not in ['cos', 'wide_resnet', 'one_cycle', 'reduce']:
             raise ValueError("Invalid scheduler type! Use 'cos', 'wide_resnet', 'one_cycle' or 'reduce'")
         
-        self.optimizer = optim.SGD(
-            self.model.parameters(),
-            lr=config.learning_rate,
-            momentum=0.9,
-            weight_decay=config.weight_decay,
-            nesterov=True
-        )
+        if config.optimizer not in ['sgd', 'adam']:
+            raise ValueError("Invalid optimizer type! Use 'sgd' or 'adam'")
+        
+        if config.optimizer == 'sgd':
+            self.optimizer = optim.SGD(
+                self.model.parameters(),
+                lr=config.learning_rate,
+                momentum=0.9,
+                weight_decay=config.weight_decay,
+                nesterov=True
+            )
+            
+        if config.optimizer == 'adam':
+            self.optimizer = optim.Adam(
+                self.model.parameters(),
+                lr=config.learning_rate,
+                weight_decay=config.weight_decay
+            )
+            
         if config.scheduler == 'cos':
             self.scheduler = CosineAnnealingLR(
                 self.optimizer,
@@ -450,7 +481,7 @@ class ModelTrainer:
             
         if config.scheduler == 'one_cycle':
             if train_loader is None:
-                raise ValueError("train_loader is required for OneCycleLR scheduler")
+                raise ValueError("train_loader in trainer args is required for OneCycleLR scheduler")
             self.scheduler = OneCycleLR(
                 self.optimizer,
                 max_lr=config.learning_rate,
