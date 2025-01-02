@@ -31,10 +31,8 @@ def main():
     model = ResNet(
         version=50,
         num_classes=50,  
-        pretrained=False,
+        pretrained=True,
         layers_to_unfreeze=2,
-        expand=False,
-        add_dropout=False
     )
     
     # model = WideResNet(
@@ -53,12 +51,12 @@ def main():
 
     print("Setting up trainer...")
     config = TrainerConfig(
-        epochs=200,
-        learning_rate=0.1, # starting lr for scheduler
-        weight_decay=5e-4,
+        epochs=100,
+        learning_rate=0.003, # starting lr for scheduler
+        weight_decay=5e-3,
         checkpoint_dir=f'checkpoints/{model.name}/{name_suffix}',
         experiment_name=f'{model.name}_{name_suffix}',
-        scheduler='wide_resnet',
+        scheduler='cos',
         mixup=True,
         label_smoothing=0.2,
     )

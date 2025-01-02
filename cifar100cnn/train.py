@@ -325,15 +325,6 @@ class ModelTrainer:
         torch.save(checkpoint, last_checkpoint_path)
         if is_best:
             torch.save(checkpoint, best_checkpoint_path)
-        
-        if is_best:
-            best_artifact = wandb.Artifact(
-                name="best-model",
-                type="model",
-                description=f"Best model checkpoint (epoch {epoch})"
-            )
-            best_artifact.add_file(str(best_checkpoint_path))
-            wandb.log_artifact(best_artifact)
 
     def load_checkpoint(self, checkpoint_path, inference=False, reset_lr=False):
         """Wczytuje stan modelu, optymalizatora i schedulera z checkpointu."""
