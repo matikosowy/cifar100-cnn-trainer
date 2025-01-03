@@ -4,6 +4,9 @@ Recruitment project for WUT KNSI GOLEM science club.
 
 This repository contains code for training and evaluating Convolutional Neural Networks (CNNs) on the CIFAR-100 dataset. The project includes implementations of ResNet and WideResNet architectures, along with training scripts and data loading utilities.
 
+W&B project:
+https://wandb.ai/matikosowy-none/cifar100-cnn?nw=nwusermatikosowy
+
 ## Project Structure
 ```sh
 Project Root
