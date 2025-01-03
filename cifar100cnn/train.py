@@ -330,8 +330,8 @@ class ModelTrainer:
         """Wczytuje stan modelu, optymalizatora i schedulera z checkpointu."""
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         
-        if not any(key.startswith('model.') for key in checkpoint['model_state_dict'].keys()):
-            model_state_dict = {f'model.{k}': v for k, v in checkpoint['model_state_dict'].items()}
+        if self.model.name.startswith('resnet') and not any(k.startswith('model.') for k in checkpoint['model_state_dict'].keys()):
+            model_state_dict = {f'model.{k}': v for k, v in checkpoint['model_state_dict'].items()} 
         else:
             model_state_dict = checkpoint['model_state_dict']
     
