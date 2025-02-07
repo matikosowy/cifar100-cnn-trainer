@@ -2,7 +2,7 @@
 
 Recruitment project for WUT KNSI GOLEM science club.
 
-This repository contains code for training and evaluating Convolutional Neural Networks (CNNs) on the CIFAR-100 dataset. The project includes implementations of ResNet and WideResNet architectures, along with training scripts and data loading utilities.
+This repository contains code for training and evaluating Convolutional Neural Networks (CNNs) on the CIFAR-100 dataset. The project includes implementations of ResNet and WideResNet architectures, with extensive configuration options for training and regularization.
 
 W&B project:
 https://wandb.ai/matikosowy-none/cifar100-cnn/overview
@@ -39,28 +39,97 @@ Project Root
 - wandb
 - tqdm
 
-You can install the required packages using pip:
-
+Install required packages:
 ```sh
 pip install -r requirements.txt
 ```
 
 # Usage
 
+Run the script with command line arguments for different operations:
+
 ## Training
-To train a model, run the main.py script with the MODE set to 'train'. You can configure various training parameters in the script.
+Train a ResNet-18 from scratch with data augmentation:
+```sh
+python main.py --mode train --model resnet --version 18 \
+              --epochs 100 --lr 0.1 --wd 5e-4 --augment \
+              --scheduler cos --ls 0.1 --mixup
+```
+
+Fine-tune a pretrained ResNet-50 (unfreezing 2 layers):
+```sh
+python main.py --mode train --model resnet --version 50 \
+              --pretrained --unfreeze 2 --classes 100 \
+              --epochs 50 --lr 0.01 --augment
+```
+
+Train a WideResNet:
+```sh
+python main.py --mode train --model wideresnet --classes 50 \
+              --epochs 200 --lr 0.1 --mixup --augment
+```
 
 ## Inference
-To perform inference using a pre-trained model, set the MODE to 'inference' and specify the path to the model checkpoint in MODEL_FOR_INFERENCE.
+Evaluate a trained model:
+```sh
+python main.py --mode inference --path checkpoints/resnet18/fine-tuned/best_model.pth
+```
 
-## Configuration
-The training and model configurations are defined in the TrainerConfig class in train.py. You can customize parameters such as learning rate, number of epochs, optimizer type, and more.
+## Key Arguments
+
+### Main Parameters
+- `--mode`: Operation mode (`train`/`inference`)
+- `--model`: Architecture choice (`resnet`/`wideresnet`)
+- `--path`: Model checkpoint path (required for inference)
+
+### Model Configuration
+- `--version`: ResNet version (18/50)
+- `--pretrained`: Use pretrained ResNet weights
+- `--unfreeze`: Number of layers to unfreeze (0-5)
+- `--classes`: Number of output classes (1-100)
+
+### Training Parameters
+- `--epochs`: Number of training epochs
+- `--lr`: Initial learning rate
+- `--wd`: Weight decay (L2 regularization)
+- `--scheduler`: LR scheduler (`adam`, `sgd`, `cos`, `reduce`, `1cycle`)
+
+### Regularization
+- `--augment`: Enable standard data augmentation
+- `--mixup`: Enable MixUp augmentation
+- `--ls`: Label smoothing factor (0.0-1.0)
+
+### Checkpoint Handling
+- `--resume`: Resume training from last checkpoint
 
 ## Data Loading
-The CIFAR-100 dataset is loaded and preprocessed using the CIFAR100DataModule class in data.py. This class handles data augmentation, normalization, and splitting into training, validation, and test sets.
+The data pipeline supports:
+- Automatic download and caching of CIFAR-100
+- Customizable number of classes (1-100)
+- Data augmentation (crops, flips, etc.) with `--augment`
+- Normalization and standardization
 
 ## Models
-The repository includes implementations of ResNet and WideResNet architectures in models.py. You can choose between these models and their parameters.
 
-## Logging and Visualization
-Training progress and metrics are logged using Weights & Biases (wandb). Make sure to set up your wandb account and configure the project name in TrainerConfig.
+### ResNet
+- Versions: 18/50
+- Pretrained initialization option
+- Gradual unfreezing for fine-tuning
+
+### WideResNet
+- Default configuration: 28 layers with widen factor 10
+
+## Logging and Monitoring
+Training metrics are tracked with Weights & Biases:
+- Loss curves and accuracy metrics
+- Hyperparameter tracking
+- System resource monitoring
+
+Configure your W&B account and project name in `TrainerConfig` before running.
+
+## Checkpointing
+Automatic checkpoint features:
+- Best model saving (validation accuracy)
+- Last checkpoint preservation
+- Training resume capability
+- Model config and metadata storage
