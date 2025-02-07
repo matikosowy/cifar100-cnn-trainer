@@ -6,7 +6,7 @@ import torchvision.transforms.v2 as transforms
 
 
 class CIFAR100DataModule:
-    """Klasa do ładowania i przetwarzania danych CIFAR-100."""
+    """Clas for handling CIFAR-100 data downloading and processing."""
     def __init__(self, 
                  batch_size= 128,
                  num_workers = 4,
@@ -31,7 +31,7 @@ class CIFAR100DataModule:
         self.test_loader = None
 
     def _get_transforms(self):
-        """Zwraca transformacje dla zbioru treningowego i testowego."""
+        """Returns train and test transforms."""
         train_transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(32, padding=4),
@@ -57,7 +57,7 @@ class CIFAR100DataModule:
         return train_transform, test_transform
 
     def _select_classes(self, dataset):
-        """Zwraca mapowanie klas oryginalnych na wybrane klasy."""
+        """Returns a mapping for selected classes."""
         rng = np.random.RandomState(42)
         self.selected_classes = rng.choice(100, self.num_classes, replace=False)
         self.selected_classes.sort()
@@ -71,7 +71,7 @@ class CIFAR100DataModule:
         return class_mapping
 
     def _filter_dataset(self, dataset, class_mapping):
-        """Filtruje zbiór danych do wybranych klas."""
+        """Filters dataset to contain only selected classes."""
         indices = [i for i in range(len(dataset)) 
                   if dataset.targets[i] in self.selected_classes]
         
@@ -85,7 +85,7 @@ class CIFAR100DataModule:
         return filtered_dataset
 
     def setup(self):
-        """Pobiera, przetwarza i dzieli zbiór danych na zbiór treningowy, walidacyjny i testowy."""
+        """Loads, splits and filters CIFAR-100 dataset."""
         train_transform, test_transform = self._get_transforms()
         
         train_dataset = datasets.CIFAR100(
@@ -165,7 +165,7 @@ class CIFAR100DataModule:
 
 def get_cifar_data(batch_size=128, num_workers=4, num_classes=100, 
                    data_dir='./data', augment=False):
-    """Domyślna funkcja do pobierania gotowych danych CIFAR-100."""
+    """Default function for loading CIFAR-100 data."""
     data_module = CIFAR100DataModule(
         batch_size=batch_size,
         num_workers=num_workers,

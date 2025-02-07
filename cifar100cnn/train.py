@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 def mixup_data(x, y, alpha=0.2):
-    """Zwraca zmieszane dane i etykiety oraz współczynnik mieszania Mixup."""
+    """Returns mixed inputs, pairs of targets, and lambda."""
     if alpha > 0:
         lam = np.random.beta(alpha, alpha)
     else:
@@ -28,26 +28,26 @@ def mixup_data(x, y, alpha=0.2):
 
 
 def mixup_criterion(criterion, pred, y_a, y_b, lam):
-    """Funkcja straty Mixup."""
+    """Mixup loss function."""
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
 class TrainerConfig:
-    """Klasa konfiguracyjna dla trenera modelu.
+    """Config class for the model trainer.
     
     Args:
-        epochs (int): Liczba epok.
-        learning_rate (float): Współczynnik uczenia.
-        weight_decay (float): Współczynnik regularyzacji L2.
-        label_smoothing (float): Współczynnik wygładzania etykiet (dla mixup - alpha).
-        checkpoint_dir (str): Ścieżka do zapisu checkpointów.
-        scheduler (str): Typ schedulera (cos, wide_resnet, one_cycle, reduce).
-        optimizer (str): Typ optymalizatora (sgd, adam).
-        mixup (bool): Czy używać Mixup.
-        project_name (str): Nazwa projektu w Weight & Biases.
-        experiment_name (str): Nazwa eksperymentu w Weight & Biases.
-        log_predictions_freq (int): Częstotliwość logowania predykcji.
-        tags (list): Lista tagów dla eksperymentu.
+        epochs (int): Number of epochs.
+        learning_rate (float): Initial learning rate.
+        weight_decay (float): Weight decay (L2 regularization).
+        label_smoothing (float): Label smoothing factor (alpha if mixup used).
+        checkpoint_dir (str): Directory for saving model checkpoints.
+        scheduler (str): Learning rate scheduler type (cos, wide_resnet, 1cycle, reduce).
+        optimizer (str): Optimizer type (sgd, adam).
+        mixup (bool): Enable mixup augmentation.
+        project_name (str): Weight & Biases project name.
+        experiment_name (str): Weight & Biases experiment name.
+        log_predictions_freq (int): Log predictions to W&B every n batches.
+        tags (list): List of tags for W&B.
     """
     def __init__(
         self,
@@ -82,14 +82,14 @@ class TrainerConfig:
 
 
 class ModelTrainer:
-    """Klasa trenera modelu.
+    """Model trainer class.
     
     Args:
-        model (nn.Module): Model do trenowania.
-        device (torch.device): Urządzenie (cpu, cuda).
-        config (TrainerConfig): Konfiguracja trenera.
-        train_loader (DataLoader): *tylko jeśli używamy one_cycle*
-        class_names (list): Lista nazw klas (dla wandb).
+        model (nn.Module): Model for training.
+        device (torch.device): Device for training (cuda or cpu).
+        config (TrainerConfig): Configuration for the trainer.
+        train_loader (DataLoader): Training data loader for 1cycle scheduler.
+        class_names (list): List of class names for confusion matrix.
     
     """
     def __init__(self, model, device, config, train_loader=None, class_names=None):
@@ -101,7 +101,7 @@ class ModelTrainer:
         self.wandb_step = 0
         
         self.init_wandb()
-        #wandb.watch(model, log='all', log_freq=config.log_predictions_freq)
+        wandb.watch(model, log='all', log_freq=config.log_predictions_freq)
         
         self.criterion_train = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
         self.criterion_eval = nn.CrossEntropyLoss()
@@ -118,7 +118,7 @@ class ModelTrainer:
         os.makedirs(config.checkpoint_dir, exist_ok=True)
         
     def init_wandb(self):
-        """Inicjalizacja Weight & Biases."""
+        """W&B initialization."""
         config_dict = {
             "learning_rate": self.config.learning_rate,
             "epochs": self.config.epochs,
@@ -140,7 +140,7 @@ class ModelTrainer:
         )
 
     def log_batch_predictions(self, inputs, outputs, labels, prefix="train"):
-        """Zapisuje losowe predykcje modelu do W&B."""
+        """Save batch predictions to W&B."""
         _, predicted = outputs.max(1)
         
         batch_size = inputs.size(0)
@@ -170,7 +170,7 @@ class ModelTrainer:
         }, step=self.wandb_step)
 
     def log_confusion_matrix(self, all_preds, all_targets, num_classes, prefix="train"):
-        """Zapisuje confusion matrix do W&B."""
+        """Save confusion matrix to W&B."""
         confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.long)
         for pred, target in zip(all_preds, all_targets):
             confusion_matrix[target, pred] += 1
@@ -186,7 +186,7 @@ class ModelTrainer:
 
 
     def train_epoch(self, train_loader, epoch):
-        """Trening modelu przez jedną epokę."""
+        """One epoch of training."""
         self.model.train()
         running_loss = 0.0
         correct = 0
@@ -223,7 +223,7 @@ class ModelTrainer:
                 loss.backward()
                 self.optimizer.step()
                 
-            if self.config.scheduler == 'one_cycle':
+            if self.config.scheduler == '1cycle':
                 self.scheduler.step()
             
             running_loss += loss.item()
@@ -261,7 +261,7 @@ class ModelTrainer:
         return metrics
 
     def evaluate(self, val_loader, phase='val', inference=False):
-        """Walidacja modelu."""
+        """Validation or test phase."""
         self.model.eval()
         running_loss = 0.0
         correct = 0
@@ -327,7 +327,7 @@ class ModelTrainer:
             torch.save(checkpoint, best_checkpoint_path)
 
     def load_checkpoint(self, checkpoint_path, inference=False, reset_lr=False):
-        """Wczytuje stan modelu, optymalizatora i schedulera z checkpointu."""
+        """Load model checkpoint."""
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         
         if self.model.name.startswith('resnet') and not any(k.startswith('model.') for k in checkpoint['model_state_dict'].keys()):
@@ -368,7 +368,7 @@ class ModelTrainer:
             return None
 
     def train(self, train_loader, val_loader):
-        """Trening modelu."""
+        """Main training loop."""
         try:
             best_val_acc = 0.0
             
@@ -382,7 +382,7 @@ class ModelTrainer:
                 val_metrics, accuracy = self.evaluate(val_loader)
                 val_loss = val_metrics['val_loss']
                 
-                if self.config.scheduler != 'one_cycle':
+                if self.config.scheduler != '1cycle':
                     if self.config.scheduler == 'reduce':
                         self.scheduler.step(val_loss)
                     else:
@@ -433,9 +433,9 @@ class ModelTrainer:
                 )
                 
     def _init_optimizer_and_scheduler(self, config, train_loader=None):
-        """Inicjalizacja optymalizatora i schedulera."""
-        if config.scheduler not in ['cos', 'wide_resnet', 'one_cycle', 'reduce']:
-            raise ValueError("Invalid scheduler type! Use 'cos', 'wide_resnet', 'one_cycle' or 'reduce'")
+        """Optimizer and scheduler initialization."""
+        if config.scheduler not in ['cos', 'wide_resnet', '1cycle', 'reduce']:
+            raise ValueError("Invalid scheduler type! Use 'cos', 'wide_resnet', '1cycle' or 'reduce'")
         
         if config.optimizer not in ['sgd', 'adam']:
             raise ValueError("Invalid optimizer type! Use 'sgd' or 'adam'")
@@ -470,7 +470,7 @@ class ModelTrainer:
                 gamma=0.2
             )
             
-        if config.scheduler == 'one_cycle':
+        if config.scheduler == '1cycle':
             if train_loader is None:
                 raise ValueError("train_loader in trainer args is required for OneCycleLR scheduler")
             self.scheduler = OneCycleLR(
@@ -516,7 +516,7 @@ def train_cifar_model(
     device = None,
     config= None
 ):
-    """Domyślna funkcja treningu modelu CIFAR-50."""
+    """Default training function for CIFAR models"""
 
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
