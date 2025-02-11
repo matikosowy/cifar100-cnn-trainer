@@ -19,12 +19,15 @@ Project Root
 │ ├── data.py 
 │ ├── models.py 
 │ ├── train.py 
+│ ├── extractor.py 
 ├── class_names.txt 
 ├── data/ 
 ├── LICENSE 
 ├── main.py 
 ├── notebooks/ 
 │ ├── dataset_analysis.ipynb 
+│ ├── knn_classification.ipynb
+│ ├── models.ipynb  
 ├── README.md 
 ├── wandb/
 ├── requirements.txt

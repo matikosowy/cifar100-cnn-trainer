@@ -4,6 +4,7 @@ from sklearn.preprocessing import normalize
 import torch
 import numpy as np
 import torch.nn.functional as F
+import json
 
 from cifar100cnn.models import *
 
@@ -56,9 +57,6 @@ def classify_knn(test_features, class_representatives, n_neighbors=1):
     train_features = np.vstack(list(class_representatives.values()))
     train_labels = np.array(list(class_representatives.keys()))
 
-    #train_features = normalize(train_features, norm='l2', axis=1)
-    #test_features = normalize(test_features, norm='l2', axis=1)
-
     knn = KNeighborsClassifier(n_neighbors=n_neighbors, metric='cosine')
     knn.fit(train_features, train_labels)
     predicted_labels = knn.predict(test_features)
@@ -93,39 +91,52 @@ def run_stage_2(models, feature_extractor, train_loader, test_loader, classes_A,
     for model_name, model in models.items():
         print(f"\nModel: {model_name}")
 
-        train_features, train_labels = feature_extractor.extract_features(model, train_loader)
         test_features, test_labels = feature_extractor.extract_features(model, test_loader)
-
-        mask_train_A = np.isin(train_labels, classes_A)
         mask_test_A = np.isin(test_labels, classes_A)
-        train_features_A, train_labels_A = train_features[mask_train_A], train_labels[mask_train_A]
         test_features_A, test_labels_A = test_features[mask_test_A], test_labels[mask_test_A]
 
-        for num_samples in [1, 5, 10]:
-            save_path = f"etap2/{model_name}_{num_samples}.npy"
-            class_representatives = compute_class_representatives(train_features_A, train_labels_A, num_samples, save_path)
-            
-            predictions_A = classify_knn(test_features_A, class_representatives)
-            accuracy_A = evaluate_accuracy(predictions_A, test_labels_A)
-            print(f"\tpodzbiory {num_samples}-elementowe, accuracy = {accuracy_A:.2f}%")
+        for num_samples in NUM_SAMPLES_PER_CLASS:
+            results_path = f"etap2/{model_name}_{num_samples}_class.npy"
+            if os.path.exists(results_path):
+                predictions_A = np.load(results_path)
+                accuracy_A = evaluate_accuracy(predictions_A, test_labels_A)
+                print(f"\tpodzbiory {num_samples}-elementowe, accuracy = {accuracy_A:.2f}% (wczytane z pliku)")
+
+            else:
+                train_features, train_labels = feature_extractor.extract_features(model, train_loader)
+                mask_train_A = np.isin(train_labels, classes_A)
+                train_features_A, train_labels_A = train_features[mask_train_A], train_labels[mask_train_A]
+
+                class_representatives = compute_class_representatives(train_features_A, train_labels_A, num_samples)
+                predictions_A = classify_knn(test_features_A, class_representatives)
+                accuracy_A = evaluate_accuracy(predictions_A, test_labels_A)
+
+                np.save(results_path, predictions_A)
+                print(f"\tpodzbiory {num_samples}-elementowe, accuracy = {accuracy_A:.2f}% (nowo obliczone)")
 
 def run_stage_3(models, feature_extractor, train_loader, test_loader, classes_B, device):
     print("\nETAP 3: Klasyfikacja k-NN dla klas B (niewidziane klasy)")
     for model_name, model in models.items():
         print(f"\nModel: {model_name}")
 
-        train_features, train_labels = feature_extractor.extract_features(model, train_loader)
         test_features, test_labels = feature_extractor.extract_features(model, test_loader)
-
-        mask_train_B = np.isin(train_labels, classes_B)
         mask_test_B = np.isin(test_labels, classes_B)
-        train_features_B, train_labels_B = train_features[mask_train_B], train_labels[mask_train_B]
         test_features_B, test_labels_B = test_features[mask_test_B], test_labels[mask_test_B]
 
         for num_samples in NUM_SAMPLES_PER_CLASS:
-            save_path = f"etap3/{model_name}_{num_samples}.npy"
-            class_representatives_B = compute_class_representatives(train_features_B, train_labels_B, num_samples, save_path)
-            
-            predictions_B = classify_knn(test_features_B, class_representatives_B)
-            accuracy_B = evaluate_accuracy(predictions_B, test_labels_B)
-            print(f"\tpodzbiory {num_samples}-elementowe, accuracy = {accuracy_B:.2f}%")
+            results_path = f"etap3/{model_name}_{num_samples}_class.npy"
+            if os.path.exists(results_path):
+                predictions_B = np.load(results_path)
+                accuracy_B = evaluate_accuracy(predictions_B, test_labels_B)
+                print(f"\tpodzbiory {num_samples}-elementowe, accuracy = {accuracy_B:.2f}% (wczytane z pliku)")
+            else:
+                train_features, train_labels = feature_extractor.extract_features(model, train_loader)
+                mask_train_B = np.isin(train_labels, classes_B)
+                train_features_B, train_labels_B = train_features[mask_train_B], train_labels[mask_train_B]
+
+                class_representatives = compute_class_representatives(train_features_B, train_labels_B, num_samples)
+                predictions_B = classify_knn(test_features_B, class_representatives)
+                accuracy_B = evaluate_accuracy(predictions_B, test_labels_B)
+
+                np.save(results_path, predictions_B)
+                print(f"\tpodzbiory {num_samples}-elementowe, accuracy = {accuracy_B:.2f}% (nowo obliczone)")
