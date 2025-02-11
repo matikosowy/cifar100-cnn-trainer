@@ -1,3 +1,4 @@
+import torch
 from torchvision.models import resnet50, ResNet50_Weights, resnet18, ResNet18_Weights
 import torch.nn as nn
 import torch.nn.functional as F
@@ -70,7 +71,6 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
     
 class WideBasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropout_rate):
