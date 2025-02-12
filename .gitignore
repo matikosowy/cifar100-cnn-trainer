@@ -1,6 +1,9 @@
 checkpoints
 data
 models
+cache
+etap2
+etap3
 .idea
 __pycache__
 class_names.txt

@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 import random
+from cifar100cnn.load_models import MODEL_PATHS, load_model
 from cifar100cnn.models import ResNet, WideResNet
 from cifar100cnn.train import ModelTrainer, TrainerConfig
 from cifar100cnn.data import get_cifar_data
@@ -10,35 +11,6 @@ from cifar100cnn.extractor import *
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
-
-MODEL_PATHS = {
-    "resnet18_scratch": "checkpoints/resnet18/from-scratch/best_model.pth",
-    "resnet50_scratch": "checkpoints/resnet50/from-scratch/best_model.pth",
-    "resnet18_fine_tuned": "checkpoints/resnet18/fine-tuned/best_model.pth",
-    "resnet50_fine_tuned": "checkpoints/resnet50/fine-tuned/best_model.pth",
-    "wide_resnet": "checkpoints/wide_resnet28_10/best_model.pth"
-}
-
-def load_model(model_name, path, device):
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Plik {path} nie istnieje")
-
-    if "resnet18" in model_name:
-        model = ResNet(version=18, num_classes=50, pretrained=False)
-    elif "resnet50" in model_name:
-        model = ResNet(version=50, num_classes=50, pretrained=False)
-    elif "wide_resnet" in model_name:
-        model = WideResNet(depth=28, widen_factor=10, dropout_rate=0.5, num_classes=50)
-    else:
-        raise ValueError(f"Nieznany model: {model_name}")
-
-    checkpoint = torch.load(path, map_location=device)
-    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-
-    model.to(device)
-    model.eval()
-
-    return model
 
 def main():
     MODE = 'knn_classification'  # 'train', 'inference', 'knn_classification'
@@ -73,14 +45,40 @@ def main():
 
     elif MODE == 'knn_classification':
         train_loader, val_loader, test_loader, class_names = get_cifar_data(num_classes=100, augment=False)
+
         classes_A = np.arange(50)
         classes_B = np.arange(50, 100)
 
         models = {name: load_model(name, path, device) for name, path in MODEL_PATHS.items()}
         feature_extractor = FeatureExtractor(device)
 
-        run_stage_2(models, feature_extractor, train_loader, test_loader, classes_A, device)
-        run_stage_3(models, feature_extractor, train_loader, test_loader, classes_B, device)
+        # stage 2:
+        run_knn(
+            models=models,
+            feature_extractor=feature_extractor,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            classes=classes_A,
+            device=device,
+            stage_number=2,
+            stage_name="czesc A (50 klas treningowych)",
+            results_dir="etap2",
+            samples_per_class=[1, 5, 10]
+        )
+
+        # stage 3:
+        run_knn(
+            models=models,
+            feature_extractor=feature_extractor,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            classes=classes_B,
+            device=device,
+            stage_number=3,
+            stage_name="czesc B (50 klas nietreningowych)",
+            results_dir="etap3",
+            samples_per_class=[1, 5, 10]
+        )
 
 if __name__ == '__main__':
     main()
