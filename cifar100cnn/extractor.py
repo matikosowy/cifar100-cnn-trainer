@@ -80,16 +80,17 @@ def compute_class_representatives(features, labels, num_samples, save_path=None)
             (optional) save_path: path to save representative
     """
     class_representatives = {}
-    unique_classes = np.unique(labels)
+    unique_classes = np.unique(labels) # get the representative ONLY from distinct classes
+
     for c in unique_classes:
+        # taking random samples to ensure equal distribution
         class_indices = np.where(labels == c)[0]
         selected_indices = np.random.choice(class_indices, min(num_samples, len(class_indices)), replace=False)
         selected_features = features[selected_indices]
-
-        selected_features = normalize(selected_features, norm='l2', axis=1)
-
-        class_representatives[c] = np.mean(selected_features, axis=0)
+        selected_features = normalize(selected_features, norm='l2', axis=1) # euclidean norm for better comparison
+        class_representatives[c] = np.mean(selected_features, axis=0) # the prototype of the class
         
+    # save the representative --- it can be used later (eg. in the notebook)
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         np.save(save_path, class_representatives)
@@ -154,7 +155,10 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
             test_features = np.load(test_features_path)
             test_labels = np.load(test_labels_path)
         else:
+            # saving new if possible
             test_features, test_labels = feature_extractor.extract_features(model, test_loader)
+            os.makedirs(test_features, exist_ok=True)
+            os.makedirs(test_labels, exist_ok=True)
             np.save(test_features_path, test_features)
             np.save(test_labels_path, test_labels)
 
@@ -162,6 +166,7 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
         mask_test = np.isin(test_labels, classes)
         test_features_filtered, test_labels_filtered = test_features[mask_test], test_labels[mask_test]
 
+        # cache for train features - calculating them each time takes too much time
         train_features_path = f"cache/{model_name}_train_features.npy"
         train_labels_path = f"cache/{model_name}_train_labels.npy"
         
@@ -169,10 +174,14 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
             train_features = np.load(train_features_path)
             train_labels = np.load(train_labels_path)
         else:
+            # saving new if possible
             train_features, train_labels = feature_extractor.extract_features(model, train_loader)
+            os.makedirs(train_features, exist_ok=True)
+            os.makedirs(train_labels, exist_ok=True)
             np.save(train_features_path, train_features)
             np.save(train_labels_path, train_labels)
 
+        # filtering test data to match given classes
         mask_train = np.isin(train_labels, classes)
         train_features_filtered = train_features[mask_train]
         train_labels_filtered = train_labels[mask_train]
@@ -184,6 +193,7 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
             class_representatives = compute_class_representatives(train_features_filtered, train_labels_filtered, num_samples)
             
             for k in n_neighbors_list:
+                # loading the results if they were previously calculated
                 results_path = f"{results_dir}/{model_name}_{num_samples}_k{k}_class.npy"
                 
                 if os.path.exists(results_path):

@@ -80,6 +80,10 @@ python main.py --mode inference --path checkpoints/resnet18/fine-tuned/best_mode
 ```
 
 ## KNN Classification
+Do a KNN Classification:
+```sh
+python script.py --mode knn_classification --model resnet --path checkpoints/resnet18/from-scratch/best_model.pth --version 18
+```
 
 ## Key Arguments
 
@@ -144,3 +148,9 @@ Automatic checkpoint features:
 - Last checkpoint preservation
 - Training resume capability
 - Model config and metadata storage
+
+## Classification
+- Removes the classification layers from the model
+- Uses KNN to classify based on extracted features
+- Evaluates model performance on both known and unknown classes
+- Allows modification of the number of neighbors in KNN
