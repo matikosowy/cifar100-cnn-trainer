@@ -44,6 +44,18 @@ def main():
             print(f"Test Accuracy: {test_accuracy*100:.2f}%")
 
     elif MODE == 'knn_classification':
+        wandb.init(
+            project="cifar100-knn",
+            entity="matikosowy-none",
+            name="knn_evaluation",
+            config={
+                "stage2_classes": 50,
+                "stage3_classes": 50,
+                "samples_per_class": [1, 5, 10],
+                "n_neighbors_list": [1, 2, 5, 7, 10]
+            }
+        )
+
         train_loader, val_loader, test_loader, class_names = get_cifar_data(num_classes=100, augment=False)
 
         classes_A = np.arange(50)
@@ -62,8 +74,9 @@ def main():
             device=device,
             stage_number=2,
             stage_name="czesc A (50 klas treningowych)",
-            results_dir="etap2",
-            samples_per_class=[1, 5, 10]
+            results_dir="cache/etap2",
+            samples_per_class=[1, 5, 10],
+            n_neighbors_list=[1, 2, 5, 7, 10]
         )
 
         # stage 3:
@@ -76,8 +89,9 @@ def main():
             device=device,
             stage_number=3,
             stage_name="czesc B (50 klas nietreningowych)",
-            results_dir="etap3",
-            samples_per_class=[1, 5, 10]
+            results_dir="cache/etap3",
+            samples_per_class=[1, 5, 10],
+            n_neighbors_list=[1, 2, 5, 7, 10]
         )
 
 if __name__ == '__main__':

@@ -79,12 +79,14 @@ Evaluate a trained model:
 python main.py --mode inference --path checkpoints/resnet18/fine-tuned/best_model.pth
 ```
 
+## KNN Classification
+
 ## Key Arguments
 
 ### Main Parameters
-- `--mode`: Operation mode (`train`/`inference`)
+- `--mode`: Operation mode (`train`/`inference`/`knn_classification`)
 - `--model`: Architecture choice (`resnet`/`wideresnet`)
-- `--path`: Model checkpoint path (required for inference)
+- `--path`: Model checkpoint path (required for inference and knn)
 
 ### Model Configuration
 - `--version`: ResNet version (18/50)
@@ -97,6 +99,10 @@ python main.py --mode inference --path checkpoints/resnet18/fine-tuned/best_mode
 - `--lr`: Initial learning rate
 - `--wd`: Weight decay (L2 regularization)
 - `--scheduler`: LR scheduler (`adam`, `sgd`, `cos`, `reduce`, `1cycle`)
+
+### KNN Classification Parameters
+- `--samples-per-class:` Number of examples per class (default: [1, 5, 10])
+- `--n-neighbors:` k-values for KNN evaluation (default: [1])
 
 ### Regularization
 - `--augment`: Enable standard data augmentation
@@ -128,6 +134,7 @@ Training metrics are tracked with Weights & Biases:
 - Loss curves and accuracy metrics
 - Hyperparameter tracking
 - System resource monitoring
+- KNN evaluation results
 
 Configure your W&B account and project name in `TrainerConfig` before running.
 
