@@ -70,7 +70,6 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
     
 class WideBasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropout_rate):

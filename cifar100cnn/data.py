@@ -6,7 +6,7 @@ import torchvision.transforms.v2 as transforms
 
 
 class CIFAR100DataModule:
-    """Clas for handling CIFAR-100 data downloading and processing."""
+    """Class for handling CIFAR-100 data downloading and processing."""
     def __init__(self, 
                  batch_size= 128,
                  num_workers = 4,
