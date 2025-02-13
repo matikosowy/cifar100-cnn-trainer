@@ -97,7 +97,7 @@ def compute_class_representatives(features, labels, num_samples, save_path=None)
 
     return class_representatives
 
-def classify_knn(test_features, class_representatives, n_neighbors=1):
+def classify_knn(test_features, class_representatives, n_neighbors=1, metric='cosine'):
     """
         Returns results (array of predicted class labels) of the KNN classification with class representatives.
         Default value of n-neighbors is 1 --- returns the best accuracies for all models.
@@ -106,12 +106,13 @@ def classify_knn(test_features, class_representatives, n_neighbors=1):
             test_features: feature vectors to classify
             class_representatives: dict of class representatives
             n_neighbors: number of neighbors in knn classifier
+            metric: type of metric used to measure the distances between classes
     """
 
     train_features = np.vstack(list(class_representatives.values()))
     train_labels = np.array(list(class_representatives.keys()))
 
-    knn = KNeighborsClassifier(n_neighbors=n_neighbors, metric='cosine')
+    knn = KNeighborsClassifier(n_neighbors=n_neighbors, metric=metric)
     knn.fit(train_features, train_labels)
 
     return knn.predict(test_features)
@@ -122,7 +123,7 @@ def evaluate_accuracy(predictions, true_labels):
     """
     return np.mean(predictions == true_labels) * 100
 
-def run_knn(models, feature_extractor, train_loader, test_loader, classes, device, stage_number, stage_name, results_dir, samples_per_class, n_neighbors_list):
+def run_knn(models, feature_extractor, train_loader, test_loader, classes, device, stage_number, stage_name, results_dir, samples_per_class, n_neighbors_list, metric='cosine'):
     """
         Full evaluation for KNN classification (can be used for BOTH stages).
         Handles: feature extraction, caching, and result logging.
@@ -136,14 +137,16 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
             device: comp. device (cpu/gpu)
             stage_number: number of the stage (2/3)
             stage_name: description of the stage
-            results_dir: path to the results of the evaluation --- stored in cache
+            results_dir: path to the results of the evaluation --- stored in the cache
             samples_per_class: list of sample counts per class for creating the representatives
             n_neighbors_list: list of k-values for k-NN evaluation
-
+            metric: type of metric used to measure the distances between classes (in knn classification)
     """
 
-    print(f"\nETAP {stage_number}: Klasyfikacja k-NN:")
-    
+    print(f"\nSTAGE {stage_number}: KNN Classification {stage_name}:")
+
+    os.makedirs(f"cache", exist_ok=True)
+
     for model_name, model in models.items():
         print(f"\nModel: {model_name}")
 
@@ -157,8 +160,7 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
         else:
             # saving new if possible
             test_features, test_labels = feature_extractor.extract_features(model, test_loader)
-            os.makedirs(test_features, exist_ok=True)
-            os.makedirs(test_labels, exist_ok=True)
+
             np.save(test_features_path, test_features)
             np.save(test_labels_path, test_labels)
 
@@ -176,8 +178,7 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
         else:
             # saving new if possible
             train_features, train_labels = feature_extractor.extract_features(model, train_loader)
-            os.makedirs(train_features, exist_ok=True)
-            os.makedirs(train_labels, exist_ok=True)
+
             np.save(train_features_path, train_features)
             np.save(train_labels_path, train_labels)
 
@@ -194,18 +195,18 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
             
             for k in n_neighbors_list:
                 # loading the results if they were previously calculated
-                results_path = f"{results_dir}/{model_name}_{num_samples}_k{k}_class.npy"
+                results_path = f"{results_dir}/{model_name}_{num_samples}_k{k}_{metric}_class.npy"
                 
                 if os.path.exists(results_path):
                     predictions = np.load(results_path)
                     accuracy = evaluate_accuracy(predictions, test_labels_filtered)
-                    print(f"\tpodzbiory {num_samples}-elementowe, knn k={k}, accuracy = {accuracy:.2f}% (wczytane z pliku)")
+                    print(f"\tusing {num_samples} samples, knn k = {k}, knn metric = {metric}, accuracy = {accuracy:.2f}% (read from file)")
                 else:
-                    predictions = classify_knn(test_features_filtered, class_representatives, n_neighbors=k)
+                    predictions = classify_knn(test_features_filtered, class_representatives, n_neighbors=k, metric=metric)
                     accuracy = evaluate_accuracy(predictions, test_labels_filtered)
                     os.makedirs(results_dir, exist_ok=True)
                     np.save(results_path, predictions)
-                    print(f"\tpodzbiory {num_samples}-elementowe, knn k={k}, accuracy = {accuracy:.2f}%")
+                    print(f"\tusing {num_samples} samples, knn k = {k}, knn metric = {metric}, accuracy = {accuracy:.2f}%")
 
                 accuracies_dict[k].append(accuracy)
 
@@ -215,6 +216,7 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
                     "model": model_name,
                     "samples_per_class": num_samples,
                     "k_neighbors": k,
+                    "metric": metric,
                     "accuracy": accuracy
                 })
 
@@ -229,9 +231,9 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
                 table,
                 x="samples_per_class",
                 y="accuracy",
-                title=f"Stage {stage_number} - {model_name} (k={k})"
+                title=f"STAGE {stage_number}: {model_name} (k={k}, metric={metric})"
             )
             
             wandb.log({
-                f"Stage {stage_number}/{model_name}/k_{k}/Accuracy": line_plot
+                f"Stage {stage_number}/{model_name}/k_{k}/{metric}/Accuracy": line_plot
             })

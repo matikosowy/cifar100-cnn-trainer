@@ -55,32 +55,32 @@ Run the script with command line arguments for different operations:
 ## Training
 Train a ResNet-18 from scratch with data augmentation:
 ```sh
-python main.py --mode train --model resnet --version 18 \
+python script.py --mode train --model resnet --version 18 \
               --epochs 100 --lr 0.1 --wd 5e-4 --augment \
               --scheduler cos --ls 0.1 --mixup
 ```
 
 Fine-tune a pretrained ResNet-50 (unfreezing 2 layers):
 ```sh
-python main.py --mode train --model resnet --version 50 \
+python script.py --mode train --model resnet --version 50 \
               --pretrained --unfreeze 2 --classes 100 \
               --epochs 50 --lr 0.01 --augment
 ```
 
 Train a WideResNet:
 ```sh
-python main.py --mode train --model wideresnet --classes 50 \
+python script.py --mode train --model wideresnet --classes 50 \
               --epochs 200 --lr 0.1 --mixup --augment
 ```
 
 ## Inference
 Evaluate a trained model:
 ```sh
-python main.py --mode inference --path checkpoints/resnet18/fine-tuned/best_model.pth
+python script.py --mode inference --path checkpoints/resnet18/fine-tuned/best_model.pth
 ```
 
 ## KNN Classification
-Do a KNN Classification:
+Do a KNN Classification (example on ResNet18 trained from scratch):
 ```sh
 python script.py --mode knn_classification --model resnet --path checkpoints/resnet18/from-scratch/best_model.pth --version 18
 ```

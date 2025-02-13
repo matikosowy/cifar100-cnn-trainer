@@ -1,5 +1,5 @@
 import os
-
+import torch
 from cifar100cnn.models import *
 
 # paths to the best trained models
@@ -22,7 +22,7 @@ def load_model(model_name, path, device):
             device: device on which the model should be loaded
     """
     if not os.path.exists(path):
-        raise FileNotFoundError(f"Plik {path} nie istnieje.")
+        raise FileNotFoundError(f"File {path} doesn't exist.")
 
     if "resnet18" in model_name:
         model = ResNet(version=18, num_classes=50, pretrained=False)
@@ -31,7 +31,7 @@ def load_model(model_name, path, device):
     elif "wide_resnet" in model_name:
         model = WideResNet(depth=28, widen_factor=10, dropout_rate=0.5, num_classes=50)
     else:
-        raise ValueError(f"Nieznany model: {model_name}")
+        raise ValueError(f"Unknown model: {model_name}")
 
     checkpoint = torch.load(path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
