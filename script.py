@@ -63,9 +63,16 @@ def parse_args():
     
     training_group.add_argument(
         '--scheduler',
-        choices=['adam', 'sgd', 'cos', 'reduce', '1cycle'],
+        choices=['cos', 'reduce', '1cycle'],
         default='cos',
         help='Learning rate scheduler type'
+    )
+    
+    training_group.add_argument(
+        '--optim',
+        choices=['sgd', 'adam'],
+        default='sgd',
+        help='Optimizer to use'
     )
     
     # Model configuration
@@ -303,6 +310,7 @@ def main():
             scheduler=args.scheduler,
             mixup=args.mixup,
             label_smoothing=args.ls,
+            optimizer=args.optim,
         )
 
         trainer = ModelTrainer(model, device, config, class_names=class_names, train_loader=train_loader)
