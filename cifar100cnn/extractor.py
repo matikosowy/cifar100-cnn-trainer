@@ -1,6 +1,6 @@
 import os
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import Normalizer, normalize
 import torch
 import numpy as np
 import torch.nn.functional as F
@@ -111,6 +111,11 @@ def classify_knn(test_features, class_representatives, n_neighbors=1, metric='co
 
     train_features = np.vstack(list(class_representatives.values()))
     train_labels = np.array(list(class_representatives.keys()))
+
+    if metric == 'euclidean': # euclidean metric must have norm
+        normalizer = Normalizer(norm='l2')
+        train_features = normalizer.fit_transform(train_features)
+        test_features = normalizer.transform(test_features.copy())
 
     knn = KNeighborsClassifier(n_neighbors=n_neighbors, metric=metric)
     knn.fit(train_features, train_labels)
