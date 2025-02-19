@@ -128,7 +128,7 @@ def evaluate_accuracy(predictions, true_labels):
     """
     return np.mean(predictions == true_labels) * 100
 
-def run_knn(models, feature_extractor, train_loader, test_loader, classes, device, stage_number, stage_name, results_dir, samples_per_class, n_neighbors_list, metric='cosine'):
+def run_knn(models, feature_extractor, train_loader, test_loader, classes, device, stage_number, stage_name, results_dir, samples_per_class, n_neighbors_list=[1], metric='cosine'):
     """
         Full evaluation for KNN classification (can be used for BOTH stages).
         Handles: feature extraction, caching, and result logging.
@@ -205,13 +205,13 @@ def run_knn(models, feature_extractor, train_loader, test_loader, classes, devic
                 if os.path.exists(results_path):
                     predictions = np.load(results_path)
                     accuracy = evaluate_accuracy(predictions, test_labels_filtered)
-                    print(f"\tusing {num_samples} samples, knn k = {k}, knn metric = {metric}, accuracy = {accuracy:.2f}% (read from file)")
+                    print(f"\tusing {num_samples} samples, knn metric = {metric}, accuracy = {accuracy:.2f}% (read from file)")
                 else:
                     predictions = classify_knn(test_features_filtered, class_representatives, n_neighbors=k, metric=metric)
                     accuracy = evaluate_accuracy(predictions, test_labels_filtered)
                     os.makedirs(results_dir, exist_ok=True)
                     np.save(results_path, predictions)
-                    print(f"\tusing {num_samples} samples, knn k = {k}, knn metric = {metric}, accuracy = {accuracy:.2f}%")
+                    print(f"\tusing {num_samples} samples, knn metric = {metric}, accuracy = {accuracy:.2f}%")
 
                 accuracies_dict[k].append(accuracy)
 

@@ -143,13 +143,6 @@ def parse_args():
         help='Numbers of samples per class for KNN'
     )
     knn_group.add_argument(
-        '--n-neighbors',
-        type=int,
-        nargs='+',
-        default=[1],
-        help='Numbers of neighbours (k) for KNN classifier'
-    )
-    knn_group.add_argument(
         '--metric',
         type=str,
         default='cosine',
@@ -235,7 +228,6 @@ def main():
                 "stage2_classes": 50,
                 "stage3_classes": 50,
                 "samples_per_class": args.samples_per_class,
-                "n_neighbors_list": args.n_neighbors,
                 "metrics": args.metric
             }
         )
@@ -264,7 +256,6 @@ def main():
                 stage_name=f"Stage {stage} ({'known' if stage == 2 else 'unknown'} classes)",
                 results_dir=f"cache/stage{stage}",
                 samples_per_class=args.samples_per_class,
-                n_neighbors_list=args.n_neighbors,
                 metric=args.metric
             )
             
